@@ -27,14 +27,21 @@ public class Cache<K, V> extends Observable {
     }
 
     public V readCachedData(K key) {
+        printCache();
         /*
-        We had a problem here: if two ....
+        We had a problem here: we have read (1) and read(2). The cache is full.
+        The key values are different so there is no limitation to run this block.
+        Both threads can run ensureRoomForCachePut(), both will see the full capacity they both
+        remove the candidate key but we will have only one free space not two and
          */
-        synchronized (lockMap.computeIfAbsent(key, k -> new Object())) {
+        synchronized (lockMap.computeIfAbsent(key, k -> new Object())) { // ????
+            System.out.println("read key = " + key);
             V oRead = cachedData.get(key);
             if (oRead == null) {
+                System.out.println("Cache missed for " + key + " ...");
                 notify(CacheEvent.CacheEventType.CACHE_MISS, key);
                 oRead = cacheable.apply(key);
+                System.out.println(" checking room for " + key + " ...");
                 ensureRoomForCachePut();
                 cachedData.put(key, oRead);
                 notify(CacheEvent.CacheEventType.CACHE_PUT, key);
@@ -50,12 +57,17 @@ public class Cache<K, V> extends Observable {
         notifyObservers(new CacheEvent<>(cacheEventType, key));
     }
 
-    private void ensureRoomForCachePut() {
+    private synchronized void ensureRoomForCachePut() {
+        /*
+        This block should be synchronized: after running several threads it contained more than
+        capacity elements
+         */
         if (cachedData.size() == capacity) {
-            System.out.println("We need a room in the cache to put a new entry ...");
             K key = eviction.chooseCandidate();
+            System.out.println("candidate " + key + "...");
 //            K key = cachedData.keySet().stream().findFirst().get();
             cachedData.remove(key);
+            System.out.println("We removed " + key + "...");
             notify(CacheEvent.CacheEventType.CACHE_EVICT, key);
             /*isPresent() in case of there is no entry in the map, but here we are sure that there is */
         }

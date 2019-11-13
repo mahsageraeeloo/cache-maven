@@ -33,12 +33,20 @@ class EvictionLFUImpl<K> implements Eviction<K> {
             case CACHE_HIT:
                 Integer hitFrequency = data.get(cacheEvent.getKey());
                 hitFrequency++;
+                /*null pointer exception : cache is hitted for key but before
+                run gets here it was deleted
+                ?????you should think about this part also
+                */
                 data.replace(cacheEvent.getKey(), hitFrequency);
                 break;
             case CACHE_EVICT:
                 data.remove(cacheEvent.getKey());
                 break;
         }
-        System.out.println("cacheEvent = " + cacheEvent.getType());
+        System.out.println("cacheEvent = " + cacheEvent.getType() + " Key " + cacheEvent.getKey());
+    }
+    public void printPolicyData()
+    {
+        System.out.println("data = " + data);
     }
 }
